@@ -1,0 +1,34 @@
+// Both wiremock and meizu embed javax.servlet classes. 
+// They don't embed the same version of these classes, which causes instrumentation
+// tests to fail when run on a meizu device.
+// The workaround here is to relocate the javax.servlet classes embedded by wiremock,
+// for androidTest tests.
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.1.0'
+    }
+}
+apply plugin: com.github.jengelman.gradle.plugins.shadow.ShadowPlugin
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+android {
+    dependencies {
+        shadow "com.github.tomakehurst:wiremock-standalone:2.23.2"
+        androidTestImplementation files("$buildDir/libs/shadow.jar")
+    }
+}
+
+tasks.configureEach { theTask ->
+    def taskName = theTask.name.toString()
+    if (taskName =~ /generate.*Sources/) {
+        theTask.dependsOn tasks.named("shadowJar")
+    }
+}
+
+tasks.register("shadowJar", ShadowJar) {
+    baseName = 'shadow'
+    configurations = [project.configurations.shadow]
+    relocate ('javax.servlet', 'com.example.wiremockexample.javax.servlet'){}
+}
